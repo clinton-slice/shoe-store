@@ -9,3 +9,7 @@ export type Inventory = {
   model: string;
   inventory: number;
 };
+
+export interface ChartProps {
+  sales: Inventory[];
+}

@@ -1,101 +1,138 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast, ToastContainer } from "react-toastify";
+import { Inventory } from "../types";
+
 import useWebSocket from "../hooks/useWebsocket";
+
 import Table from "../components/Table";
-import Notification from "../components/Notification";
+import Stats from "../components/Stats";
+import SalesByStoreChart from "../components/SalesByStoreChart";
+import SalesByModelChart from "../components/SalesByModelChart";
+import SalesByStoreList from "../components/SalesByStoreList";
+import { useAlertsContext } from "../context/AlertsContext";
+
+const MAX_ALERTS = 5;
+const MAX_SALES = 20;
+const LOW_INVENTORY_THRESHOLD = 10;
 
 const Dashboard = () => {
-  const [alerts, setAlerts] = useState<string[]>([]);
-  const [inventoryUpdates, setInventoryUpdates] = useState([]);
+  const { setAlerts } = useAlertsContext();
+  const [totalSold, setTotalSold] = useState<number>(0);
+  const [soldByModel, setSoldByModel] = useState<Record<string, number>>({});
+  const [sales, setSales] = useState<Inventory[]>([]);
 
   const data = useWebSocket("ws://localhost:8080");
 
+  const handleSales = useCallback(
+    (data: Inventory) => {
+      const { model } = data;
+
+      // Update total shoes sold
+      setTotalSold((prevTotal) => prevTotal + 1);
+
+      // Update sold by model
+      setSoldByModel((prevSoldByModel) => ({
+        ...prevSoldByModel,
+        [model]: (prevSoldByModel[model] || 0) + 1,
+      }));
+
+      // Track all sales
+      setSales((prevSales) => [...prevSales, data]);
+    },
+    [setTotalSold, setSoldByModel, setSales]
+  );
+
+  const handleLowInventory = useCallback(
+    (data: Inventory) => {
+      const { model, inventory, store } = data;
+      const newAlert = `Only ${inventory} pairs of ${model} left at ${store}`;
+
+      // Use FIFO queue to maintain only MAX_ALERTS alerts
+      setAlerts((prevAlerts) => {
+        const updatedAlerts = [...prevAlerts, newAlert];
+        return updatedAlerts.length > MAX_ALERTS
+          ? updatedAlerts.slice(-MAX_ALERTS)
+          : updatedAlerts;
+      });
+
+      toast.warning(newAlert, {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    },
+    [setAlerts]
+  );
+
   useEffect(() => {
     if (data) {
-      //@ts-ignore
-      setInventoryUpdates((prevUpdates) => {
-        // Create a new array that contains the previous updates plus the new one
-        const updatedQueue = [...prevUpdates, data];
-
-        // If the length exceeds 10, remove the oldest item (FIFO)
-        if (updatedQueue.length > 20) {
-          updatedQueue.shift(); // Remove the first (oldest) item
-        }
-
-        return updatedQueue;
-      });
+      handleSales(data);
+      if (data.inventory < LOW_INVENTORY_THRESHOLD) {
+        handleLowInventory(data);
+      }
     }
-  }, [data]);
+  }, [data, handleSales, handleLowInventory]);
 
-  useEffect(() => {
-    if (data && data.inventory < 5) {
-      setAlerts((prevAlerts) => {
-        // Create a new array that contains the previous alerts plus the new one
-        const updatedAlerts = [
-          ...prevAlerts,
-          `${data.model} at ${data.store} is low on stock`,
-        ];
+  const bestSellingModel = useMemo(() => {
+    return Object.entries(soldByModel).reduce(
+      (best, [model, count]) =>
+        count > best.highestSales
+          ? { bestModel: model, highestSales: count }
+          : best,
+      { bestModel: "", highestSales: 0 }
+    );
+  }, [soldByModel]);
 
-        // If the length exceeds 10, remove the oldest item (FIFO)
-        if (updatedAlerts.length > 10) {
-          updatedAlerts.shift(); // Remove the first (oldest) item
-        }
-
-        return updatedAlerts;
-      });
+  const leastSellingModel = useMemo(() => {
+    if (Object.keys(soldByModel).length === 0) {
+      return { leastModel: "N/A", lowestSales: 0 };
     }
-  }, [data]);
 
-  console.log(data);
+    return Object.entries(soldByModel).reduce(
+      (least, [model, count]) =>
+        count < least.lowestSales
+          ? { leastModel: model, lowestSales: count }
+          : least,
+      { leastModel: "", lowestSales: Infinity }
+    );
+  }, [soldByModel]);
+
+  const limitedSales = useMemo(
+    () => (sales.length > MAX_SALES ? sales.slice(-MAX_SALES) : sales),
+    [sales]
+  );
 
   return (
-    <>
-      <main className="lg:pl-72">
-        <div className="xl:pr-96">
-          <div className="px-4 py-10 sm:px-6 lg:px-8 lg:py-6">
-            <Table inventoryUpdates={inventoryUpdates} />
-          </div>
-        </div>
-      </main>
-
-      <aside className="fixed inset-y-0 right-0 hidden w-96 overflow-y-auto border-l border-gray-200 px-4 py-6 sm:px-6 lg:px-8 xl:block">
-        <h1 className="text-base font-semibold leading-6 text-gray-900 mb-4">
-          Notifications
-        </h1>
-        {alerts.length > 0 && (
-          <div className="flex flex-col gap-y-3">
-            {alerts.map((alert, index) => (
-              <Notification alertMessage={alert} key={index} />
-            ))}
-          </div>
-        )}
-      </aside>
-    </>
+    <div className="px-4 py-10 sm:px-6 lg:px-8 lg:py-6 flex flex-col gap-4">
+      <Stats
+        stats={[
+          { name: "Total Shoes Sold", stat: totalSold.toLocaleString() },
+          {
+            name: "Best Selling Model",
+            stat: `${
+              bestSellingModel.bestModel
+            } (${bestSellingModel.highestSales.toLocaleString()})`,
+          },
+          {
+            name: "Least Selling Model",
+            stat: `${
+              leastSellingModel.leastModel
+            } (${leastSellingModel.lowestSales.toLocaleString()})`,
+          },
+        ]}
+      />
+      <SalesByStoreChart sales={sales} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <SalesByModelChart sales={sales} />
+        <SalesByStoreList sales={sales} />
+      </div>
+      <Table inventoryUpdates={limitedSales} />
+      <ToastContainer stacked />
+    </div>
   );
 };
 
 export default Dashboard;
-
-// const calculateInventoryValue = (stores: Store[]) => {
-//   return stores.reduce((total, store) => {
-//     // Assuming each store has an inventory with models having `quantity` and `price`
-//     const storeValue = store.inventory.reduce((storeTotal, item) => {
-//       return storeTotal + item.quantity * item.price;
-//     }, 0);
-//     return total + storeValue;
-//   }, 0);
-// };
-
-// const calculateLowStockStores = (stores: Store[], threshold = 10) => {
-//   return stores.filter((store) => {
-//     return store.inventory.some((item) => item.quantity < threshold);
-//   }).length;
-// };
-
-// const calculateOutOfStockItems = (stores: Store[]) => {
-//   return stores.reduce((totalOutOfStock, store) => {
-//     const outOfStock = store.inventory.filter(
-//       (item) => item.quantity === 0
-//     ).length;
-//     return totalOutOfStock + outOfStock;
-//   }, 0);
-// };

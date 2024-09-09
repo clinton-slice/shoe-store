@@ -1,30 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Inventory } from "../types";
 
 const useWebSocket = (url: string) => {
   const [data, setData] = useState<Inventory | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(url);
+    wsRef.current = new WebSocket(url);
 
-    ws.onopen = () => {
-      console.log("WebSocket connection opened");
+    // Listen for messages
+    wsRef.current.onmessage = (event) => {
+      const receivedData = JSON.parse(event.data);
+      // The data received from the WebSocket server is stored in the state variable data.
+      setData(receivedData);
     };
 
-    ws.onmessage = (event) => {
-      const newData = JSON.parse(event.data);
-      setData(newData);
+    // The WebSocket connection is cleaned up when the component using it is unmounted to prevent memory leaks.
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
     };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error: ", error);
-    };
-
-    ws.onclose = (event) => {
-      console.log("WebSocket connection closed: ", event);
-    };
-
-    return () => ws.close();
   }, [url]);
 
   return data;

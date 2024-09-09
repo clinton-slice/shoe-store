@@ -1,57 +1,48 @@
 import { useState } from "react";
-import { XMarkIcon } from "@heroicons/react/20/solid";
-import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { BellIcon } from "@heroicons/react/24/outline";
 
-interface NotificationProps {
-  alertMessage: string;
+interface NotificationDropdownProps {
+  notifications: string[];
 }
 
-const Notification: React.FC<NotificationProps> = ({ alertMessage }) => {
-  const [show, setShow] = useState(true);
-
-  if (!show) {
-    return null;
-  }
+const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
+  notifications,
+}) => {
+  const [show, setShow] = useState(false);
 
   return (
-    <div
-      aria-live="assertive"
-      className="pointer-events-none inset-0 flex items-end"
-    >
-      <div className="flex w-full flex-col items-center space-y-4 sm:items-end">
-        <div className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition data-[closed]:data-[enter]:translate-y-2 data-[enter]:transform data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-100 data-[enter]:ease-out data-[leave]:ease-in data-[closed]:data-[enter]:sm:translate-x-2 data-[closed]:data-[enter]:sm:translate-y-0">
-          <div className="p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <ExclamationCircleIcon
-                  aria-hidden="true"
-                  className="h-6 w-6 text-red-500"
-                />
-              </div>
-              <div className="ml-3 w-0 flex-1 pt-0.5">
-                <p className="text-sm font-medium text-gray-900">
-                  Low stock alert
-                </p>
-                <p className="mt-1 text-sm text-gray-500">{alertMessage}</p>
-              </div>
-              <div className="ml-4 flex flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShow(false);
-                  }}
-                  className="inline-flex rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  <span className="sr-only">Close</span>
-                  <XMarkIcon aria-hidden="true" className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </div>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800"
+      >
+        <span className="sr-only">View notifications</span>
+        <BellIcon aria-hidden="true" className="h-6 w-6" />
+
+        {notifications.length > 0 && (
+          <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-600 ring-2 ring-white" />
+        )}
+      </button>
+
+      {show && (
+        <div className="overflow-hidden rounded-md bg-white shadow-lg absolute right-0 w-96">
+          <ul className="divide-y divide-gray-200">
+            {notifications.map((notification, index) => (
+              <li key={index} className="px-6 py-4">
+                <div className="flex flex-col">
+                  <p className="text-sm font-bold text-gray-900">
+                    🚨 Inventory alert!
+                  </p>
+                  <p className="text-sm text-gray-900">{notification}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-export default Notification;
+export default NotificationDropdown;

@@ -106,3 +106,37 @@ EM.run {
   end
 }
 ```
+
+Here's a more concise explanation:
+
+### Client Setup
+
+Start the client with:
+
+```bash
+cd client
+yarn start
+```
+
+### Technologies Used and Their Benefits
+
+1. **React:**
+
+   - **Reason:** For building dynamic UIs with a component-based architecture.
+   - **Benefits:** Reusability, efficiency with Virtual DOM, strong community support.
+
+2. **TypeScript:**
+
+   - **Reason:** To add static typing to JavaScript for catching errors early.
+   - **Benefits:** Type safety, improved code readability, better developer tooling.
+
+3. **Tailwind CSS:**
+
+   - **Reason:** Utility-first framework for rapid and responsive UI design.
+   - **Benefits:** Faster styling, mobile-friendly designs, reduced custom CSS.
+
+4. **Chart.js:**
+   - **Reason:** For creating interactive charts to visualize data.
+   - **Benefits:** Easy to integrate, customizable, lightweight, and performant.
+
+This stack ensures a modern, efficient, and maintainable front-end with a focus on speed (rapid development) and user experience.

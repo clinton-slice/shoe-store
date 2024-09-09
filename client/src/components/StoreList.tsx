@@ -7,7 +7,7 @@ interface StoreListProps {
 
 const StoreList: React.FC<StoreListProps> = ({ stores }) => {
   return (
-    <ul className="divide-y divide-gray-100 overflow-hidden bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+    <ul className="divide-y divide-gray-100 overflow-hidden bg-white shadow-lg ring-1 ring-gray-900/5 sm:rounded-xl">
       {stores.map((store) => (
         <li
           key={store.name}
